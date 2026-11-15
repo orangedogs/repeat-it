@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Repeat It</title>
+  <link rel="stylesheet" href="style.css">
+  <script>/* 화면 깜빡임 없이 테마 먼저 적용 */try{document.documentElement.dataset.theme=JSON.parse(localStorage.getItem('shadow:settings')||'{}').theme||'dark'}catch(e){}</script>
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><span class="logo">◉</span><span class="name"><b>리핏잇</b> <small class="en-name">Repeat It</small></span><span class="sub">원하는 콘텐츠로, 쉽고 편한 영어 쉐도잉</span></div>
+    <div class="top-actions">
+      <button class="btn ghost hidden" id="listBtn" title="재생 목록 펼치기 / 접기">☰ 재생 목록<span class="count" id="listCount"></span></button>
+      <label class="btn primary" id="openLabel" title="파일을 목록에 추가하고 바로 열기 (여러 개 선택 가능)">파일 열기<input type="file" id="fileInput" accept="audio/*,video/*,.mp3,.m4a,.wav,.mp4,.mov,.webm,.mkv,.ogg,.srt,.vtt" multiple hidden></label>
+      <div class="menu-wrap hidden" id="subMenuWrap">
+        <button class="btn ghost" id="subBtn" aria-haspopup="true" aria-expanded="false">자막 ▾</button>
+        <div class="menu hidden" id="subMenu" role="menu">
+          <button class="menu-item" id="exportBtn" role="menuitem">
+            <b><i class="arr down" aria-hidden="true">↓</i>자막 내려받기 (.srt)</b>
+            <span>현재 문장·싱크·번역을 자막 파일로 저장해요. 백업하거나 다른 기기로 옮길 때, 동영상 플레이어에서 자막으로 사용할 때 유용해요.</span>
+          </button>
+          <label class="menu-item" role="menuitem">
+            <b><i class="arr up" aria-hidden="true">↑</i>자막 불러오기 (.srt / .vtt)</b>
+            <span>기존 자막이나 내려받아 수정한 자막을 불러와 현재 문장 목록을 바꿔요. 음성인식 결과는 새 자막으로 바뀌어요.<br>※ 불러온 자막은 쉐도잉 중 단어별 색상 강조를 지원하지 않아요.</span>
+            <input type="file" id="subInput" accept=".srt,.vtt" hidden>
+          </label>
+          <p class="menu-note">문장이나 번역 몇 개만 수정할 때는 현재 문장의 ✎ 버튼을 이용하는 게 더 편리해요.</p>
+        </div>
+      </div>
+      <button class="btn icon" id="helpBtn" aria-label="도움말: 버튼 설명 보기" title="버튼 설명 보기 (?)">?</button>
+      <button class="btn icon" id="settingsBtn" aria-label="설정" title="설정">⚙</button>
+    </div>
+  </header>
+
+  <main id="app">
+    <!-- 재생 목록 (펼치기/접기) -->
+    <aside class="playlist hidden" id="playlist">
+      <div class="pl-head">
+        <h3>재생 목록</h3>
+        <div class="acts">
+          <button class="btn ghost icon rpt" id="plRepeat" title="반복 안 함" aria-label="반복 안 함"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11V10a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg><i class="one">1</i></button>
+          <label class="btn ghost" title="재생 목록에 파일 추가">+ 추가<input type="file" id="addInput" accept="audio/*,video/*,.mp3,.m4a,.wav,.mp4,.mov,.webm,.mkv,.ogg,.srt,.vtt" multiple hidden></label>
+          <button class="btn ghost icon" id="plClose" title="목록 접기" aria-label="목록 접기">«</button>
+        </div>
+      </div>
+      <ul class="pl-list" id="plList"></ul>
+      <div class="pl-skipped hidden" id="plSkipped"><button type="button" id="plSkippedOpen"></button><button type="button" class="pl-skipped-x" id="plSkippedClose" aria-label="건너뛴 파일 안내 닫기" title="닫기">✕</button></div>
+      <p class="pl-note" id="plNote"><button class="pl-note-x" id="plNoteClose" aria-label="안내 닫기" title="안내 닫기">✕</button>브라우저 탭을 닫거나 새로고침하면 이 목록은 비워져요. 파일 자체는 저장하지 않거든요. 대신 문장·번역·재생 위치는 남아 있어서, 같은 파일을 다시 넣으면 바로 이어서 할 수 있어요.</p>
+    </aside>
+
+    <!-- 1. 파일 선택 -->
+    <section id="drop" class="drop">
+      <div class="drop-box" id="dropBox">
+        <div class="drop-icon">♪</div>
+        <h1>음성이나 영상 파일을 끌어다 놓으세요</h1>
+        <p class="lead">영어 음성을 받아써서 한 문장씩 쉐도잉할 수 있도록 도와드려요.</p>
+        <label class="btn primary big">파일 선택<input type="file" id="fileInput2" accept="audio/*,video/*,.mp3,.m4a,.wav,.mp4,.mov,.webm,.mkv,.ogg,.srt,.vtt" multiple hidden></label>
+        <p class="formats">mp3 · m4a · wav · mp4 · mov · webm</p>
+        <ul class="tips">
+          <li><span class="ti">☰</span><span><b>여러 파일</b>을 함께 추가하면 재생 목록이 만들어져요.</span></li>
+          <li><span class="ti">⏎</span><span>음성·영상 파일과 <b>자막(.srt/.vtt)</b>을 함께 넣으면 음성인식 없이 바로 열 수 있어요.<small class="tip-sub">여러 파일을 함께 넣을 때는 파일명을 같게 맞춰 주세요. <span class="nowrap">(예: lesson.mp4 + lesson.srt)</span></small></span></li>
+          <li><span class="ti">🔒</span><span>파일은 <b>업로드되지 않아요.</b> 이 컴퓨터에서만 처리돼요.</span></li>
+        </ul>
+        <p class="hint">처음 사용할 때는 음성인식 모델을 내려받는 데 1~2분 정도 걸려요.</p>
+      </div>
+    </section>
+
+    <!-- 2. 음성인식 진행 -->
+    <section id="progress" class="progress hidden">
+      <div class="progress-box">
+        <h2 id="progTitle">준비 중…</h2>
+        <div class="bar"><div class="bar-fill" id="progFill"></div></div>
+        <p class="prog-detail" id="progDetail"></p>
+        <p class="prog-note" id="progNote"></p>
+        <button class="btn ghost" id="cancelBtn">취소</button>
+      </div>
+    </section>
+
+    <!-- 3. 쉐도잉 화면 -->
+    <section id="player" class="player hidden">
+      <div class="media-wrap" id="mediaWrap"><video id="media" playsinline preload="auto"></video></div>
+      <div class="stage-wrap">
+        <div class="stage" id="stage">
+          <div class="lines" id="lines"></div>
+        </div>
+        <button class="btn back-cur hidden" id="backCur">↩ 현재 문장으로</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- 하단 푸터 (처음 화면에서 보임 · 설정 맨 아래에도 같은 내용) -->
+  <footer class="site-foot" id="siteFoot"><span>© 2026 Orangedog. All rights reserved.</span><span>문의: <a class="mail-link" href="mailto:orangedog.app@gmail.com?subject=%5B%EB%A6%AC%ED%95%8F%EC%9E%87%5D%20%EB%AC%B8%EC%9D%98">orangedog.app@gmail.com</a></span></footer>
+
+  <footer class="controls hidden" id="controls">
+    <div class="time-row">
+      <span class="tm" id="tCur">0:00</span>
+      <div class="timeline" id="timeline" title="누르면 해당 위치의 문장으로 이동"><div class="timeline-fill" id="timelineFill"></div></div>
+      <span class="tm" id="tDur">0:00</span>
+    </div>
+    <div class="ctrl-row">
+      <div class="status">
+        <span class="chip phase" id="phase" role="status" aria-live="polite"><i class="dot"></i><span id="phaseText">일시정지</span></span>
+        <span class="chip" id="lineNo" title="현재 문장 번호 / 전체 문장 수">문장 <b id="lineNoVal">1 / 1</b></span>
+        <div class="pop-wrap">
+          <button class="chip chip-btn rep" id="repBtn" title="반복 횟수 변경" aria-haspopup="true" aria-expanded="false">반복 <b id="repInfo">1 / 3</b></button>
+          <div class="rep-pop hidden" id="repPop">
+            <span class="rep-pop-lab">문장당 반복</span>
+            <div class="stepper">
+              <button id="repMinus2" aria-label="반복 횟수 줄이기">−</button>
+              <input type="number" id="repeatInput2" min="1" max="10" step="1" value="3" inputmode="numeric" aria-label="문장당 반복 횟수 (1~10)">
+              <button id="repPlus2" aria-label="반복 횟수 늘리기">+</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="buttons">
+        <button class="cbtn" id="prevBtn" title="이전 문장 (←)">⏮</button>
+        <button class="cbtn" id="replayBtn" title="현재 문장 처음부터 (R)">↺</button>
+        <button class="cbtn play" id="playBtn" title="재생 / 일시정지 (Space)">▶</button>
+        <button class="cbtn" id="nextBtn" title="다음 문장 (→)">⏭</button>
+      </div>
+      <div class="quick">
+        <label class="switch" id="enSwitch" title="영어 문장 보이기 / 가리기 (E)"><input type="checkbox" id="quickEn"><span></span>영어</label>
+        <label class="switch" id="koSwitch" title="한국어 번역 켜기 / 끄기 (T)"><input type="checkbox" id="quickKo"><span></span>한국어</label>
+        <div class="pop-wrap">
+          <button class="chip chip-btn" id="speedBtn" title="재생 속도 조절" aria-haspopup="true" aria-expanded="false">속도 <b id="speedVal">1.0×</b></button>
+          <div class="speed-pop hidden" id="speedPop" role="menu"></div>
+        </div>
+        <label class="vol" title="음량 조절 (M: 음소거)"><button class="vol-icon" id="muteBtn" aria-label="음소거">🔊</button><input type="range" id="volRange" min="0" max="1" step="0.05" value="1" aria-label="음량"></label>
+      </div>
+    </div>
+  </footer>
+
+  <!-- 설정 패널 -->
+  <div class="scrim hidden" id="scrim"></div>
+  <aside class="settings" id="settings" aria-hidden="true">
+    <div class="settings-head"><h3>설정</h3><button class="btn icon" id="closeSettings" aria-label="닫기">✕</button></div>
+
+    <div class="field row">
+      <label class="switch"><input type="checkbox" id="lightMode"><span></span>라이트 모드</label>
+    </div>
+
+    <div class="field">
+      <label for="gap">따라 말하기 시간</label>
+      <select id="gap">
+        <option value="0">없음 — 들으면서 동시에 따라 말하기</option>
+        <option value="0.5">문장 길이의 0.5배</option>
+        <option value="1">문장 길이만큼 (기본)</option>
+        <option value="1.5">문장 길이의 1.5배</option>
+        <option value="2">문장 길이의 2배</option>
+      </select>
+    </div>
+
+    <div class="field row">
+      <div class="switch-row"><label class="switch"><input type="checkbox" id="translate"><span></span>한국어 자동 번역</label><button class="info-btn" id="translateInfo" type="button" aria-label="자동 번역 안내" title="자동 번역 안내">i</button></div>
+      <p class="note">켜면 영어 문장 아래에 한국어 번역이 표시돼요. 현재 문장의 수정 버튼(연필 아이콘)을 눌러 번역을 직접 고칠 수도 있어요.<br>단, 자동 번역은 PC용 크롬 브라우저(138 버전 이상)에서만 지원해요.</p>
+    </div>
+
+    <div class="field row">
+      <label class="switch"><input type="checkbox" id="autoAdvance" checked><span></span>반복이 끝나면 다음 문장으로 자동 이동</label>
+    </div>
+
+    <div class="field row">
+      <label class="switch"><input type="checkbox" id="splitLong" checked><span></span>긴 문장 나누기</label>
+      <p class="note">14단어가 넘는 문장을 쉼표나 숨 쉬는 곳에서 둘로 나눠요. 끄면 긴 문장을 통째로 연습할 수 있어요.</p>
+    </div>
+
+    <div class="field row">
+      <label class="switch"><input type="checkbox" id="showVideo" checked><span></span>영상 화면 보이기 (영상 파일일 때)</label>
+    </div>
+
+    <hr>
+    <div class="field">
+      <label for="model">음성인식 정확도</label>
+      <select id="model">
+        <option value="onnx-community/whisper-tiny.en_timestamped">빠름 (정확도가 낮을 수 있어요.)</option>
+        <option value="onnx-community/whisper-base.en_timestamped" selected>보통 (추천해요.)</option>
+        <option value="onnx-community/whisper-small.en_timestamped">정확 (처음에 내려받을 게 많아 오래 걸려요.)</option>
+      </select>
+      <button class="btn ghost full" id="retranscribeBtn" disabled>현재 파일 음성인식 다시 하기</button>
+    </div>
+
+    <div class="field keys">
+      <h4>단축키</h4>
+      <dl class="keylist">
+        <dt><kbd>?</kbd></dt><dd>버튼 설명 보기</dd>
+        <dt><kbd>Space</kbd></dt><dd>재생 / 일시정지</dd>
+        <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>이전 / 다음 문장</dd>
+        <dt><kbd>R</kbd> / <kbd>↑</kbd></dt><dd>현재 문장 처음부터 다시 듣기</dd>
+        <dt><kbd>1</kbd> ~ <kbd>9</kbd>, <kbd>0</kbd></dt><dd>반복 횟수 변경 (0은 10회)</dd>
+        <dt><kbd>E</kbd></dt><dd>영어 문장 보이기 / 가리기</dd>
+        <dt><kbd>T</kbd></dt><dd>한국어 번역 켜기 / 끄기</dd>
+        <dt><kbd>M</kbd></dt><dd>음소거 켜기 / 끄기</dd>
+        <dt><kbd class="mod">⌘</kbd>+<kbd>Z</kbd></dt><dd>실행 취소</dd>
+        <dt><kbd class="mod">⌘</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></dt><dd>다시 실행</dd>
+      </dl>
+    </div>
+
+    <div class="settings-foot">
+      <div class="links"><a href="licenses.html" target="_blank" rel="noopener">오픈소스 라이선스</a><span>문의: <a class="mail-link" href="mailto:orangedog.app@gmail.com?subject=%5B%EB%A6%AC%ED%95%8F%EC%9E%87%5D%20%EB%AC%B8%EC%9D%98">orangedog.app@gmail.com</a></span></div>
+      <p>© 2026 Orangedog. All rights reserved.</p>
+    </div>
+  </aside>
+
+  <!-- 확인 창 (브라우저 기본 확인 창은 환경에 따라 안 뜨는 경우가 있어서 직접 만듦) -->
+  <div class="modal-scrim hidden" id="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <h3 id="modalTitle"></h3>
+      <p id="modalMsg"></p>
+      <div class="modal-acts"><button class="btn ghost" id="modalNo">취소</button><button class="btn primary" id="modalYes">확인</button></div>
+    </div>
+  </div>
+
+  <!-- ? 도움말: 화면 위에 반투명 막을 씌우고 버튼마다 설명 -->
+  <div class="help hidden" id="help" role="dialog" aria-modal="true" aria-label="버튼 설명">
+    <div class="help-layer" id="helpLayer"></div>
+    <div class="help-foot">
+      <span id="helpFootText">화면 아무 곳이나 누르면 닫혀요.</span>
+    </div>
+  </div>
+  <div class="help-hint hidden" id="helpHint" role="status">
+    <span><b>?</b> 버튼을 누르면 각 기능의 설명을 볼 수 있어요.</span>
+    <button id="helpHintClose" aria-label="안내 닫기">✕</button>
+  </div>
+
+  <!-- 현재 문장의 ⋯ 메뉴 -->
+  <div class="menu line-menu hidden" id="lineMenu" role="menu">
+    <button class="menu-item" data-act="sync" role="menuitem"><b><i aria-hidden="true">⏱</i>싱크 맞추기</b></button>
+    <button class="menu-item" data-act="split" role="menuitem"><b><i aria-hidden="true">✂</i>문장 나누기</b></button>
+    <button class="menu-item" data-act="merge" role="menuitem"><b><i aria-hidden="true">⤓</i>다음 문장과 합치기</b></button>
+  </div>
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <!-- 가벼운 안내 (화면을 어둡게 하지 않고 버튼 근처에 작게) -->
+  <div class="mini-alert hidden" id="miniAlert" role="alertdialog" aria-live="polite"><b id="maTitle"></b><p id="maMsg"></p><ul class="ma-list hidden" id="maList"></ul><p class="ma-foot hidden" id="maFoot"></p><button class="btn" id="maOk" type="button">확인</button></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

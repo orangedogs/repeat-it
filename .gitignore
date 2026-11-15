@@ -1,0 +1,8 @@
+# QA 기록·테스트 파일 (배포하지 않음)
+QA_LOG.md
+qa-test/
+# 테스트용 음성·영상
+sample/
+# 편집 도구·운영체제 파일
+.claude/
+.DS_Store
