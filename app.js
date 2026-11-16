@@ -1621,7 +1621,8 @@ function positionLines() {
   // 보이는 영역보다 길면: 듣는 위치(followFrac)만큼 아래로 내려서 지금 들리는 부분이 보이게
   const visibleH = h0 * 0.64 - 8;
   lineOverflow = cur.offsetHeight > visibleH;
-  if (lineOverflow) base -= (cur.offsetHeight - visibleH) * followFrac;
+  // 싱크 창을 열어 둔 동안(들어보기 포함)은 따라 내려가지 않음 — 시간 칸·버튼이 움직이면 맞추기 어려움
+  if (lineOverflow && syncIdx !== idx) base -= (cur.offsetHeight - visibleH) * followFrac;
   // 첫 문장 위·마지막 문장 아래로 너무 넘어가지 않게
   const H = linesEl.scrollHeight, h = stage.clientHeight;
   const minY = h * 0.5 - H, maxY = h * 0.4;
