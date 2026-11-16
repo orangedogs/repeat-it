@@ -449,8 +449,13 @@ function addFiles(files, open) {
 // 음성인식 중에 다른 파일을 열려고 하면 먼저 물어봄 (음성인식은 한 번에 한 파일만)
 async function confirmStopAsr(i) {
   if (!worker || curItem < 0 || i === curItem || !playlist[curItem]) return true;
-  return askConfirm('음성인식을 중단할까요?',
-    `음성인식은 한 번에 하나의 파일만 진행할 수 있어요.\n다른 파일을 열면 ‘${displayName(playlist[curItem])}’의 음성인식이 중단돼요. 나중에 다시 열면 처음부터 음성인식을 진행해야 해요.`,
+  const name = displayName(playlist[curItem]);
+  // 열려는 파일이 이미 음성인식이 끝난 파일이면, '한 번에 하나만'이 아니라 지금 파일이 아직 인식 중이라는 점만 알림
+  let ready = false;
+  try { const c = JSON.parse(localStorage.getItem(playlist[i]?.key) || 'null'); ready = !!(c?.raw?.length || c?.segs?.length); } catch {}
+  return askConfirm('음성인식을 중단할까요?', ready
+    ? `‘${name}’는 아직 음성인식 중이에요.\n다른 파일을 열면 음성인식이 중단되고, 나중에 다시 열면 처음부터 진행해야 해요.`
+    : `음성인식은 한 번에 하나의 파일만 진행할 수 있어요.\n다른 파일을 열면 ‘${name}’의 음성인식이 중단돼요. 나중에 다시 열면 처음부터 음성인식을 진행해야 해요.`,
     '다른 파일 열기');
 }
 // 휴대폰 등 좁은 화면: 목록에서 고른 파일이 실제로 열린 뒤에만 목록을 닫음 (열기에 실패하면 목록 유지)
