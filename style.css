@@ -355,7 +355,8 @@ body.ko-on .line[data-d="0"] .ko-row .pen { display: inline-block; }
 
 /* ---------- 재생 목록 ---------- */
 .playlist {
-  flex: 0 0 270px; display: flex; flex-direction: column; min-height: 0;
+  flex: 0 0 270px; width: 270px; min-width: 0; /* 긴 파일명이 있어도 폭 고정 (이름은 …로 줄이고, 마우스를 올리면 전체 이름) */
+  display: flex; flex-direction: column; min-height: 0;
   border-right: 1px solid var(--line); background: var(--bg2);
 }
 .pl-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 12px 10px 16px; border-bottom: 1px solid var(--line); }
