@@ -56,7 +56,7 @@ self.onmessage = async (e) => {
     const { pipe, device } = await getPipe(model);
     postMessage({
       type: 'status', text: '음성을 인식하는 중…',
-      note: device === 'webgpu' ? '그래픽 카드를 사용해 빠르게 처리하고 있어요.' : '이 브라우저에서는 그래픽 카드를 사용할 수 없어 처리 시간이 더 걸릴 수 있어요.',
+      note: device === 'webgpu' ? 'AI가 영어 문장을 받아 적고 있어요.' : 'AI가 영어 문장을 받아 적고 있어요. 처리 시간이 조금 더 걸릴 수 있어요.',
     });
     postMessage({ type: 'progress', value: 0 });
 

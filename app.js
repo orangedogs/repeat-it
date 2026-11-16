@@ -520,6 +520,64 @@ function setListOpen(open) {
   renderPlaylist();
   requestAnimationFrame(positionLines);
 }
+/* ---------- 재생 목록 순서 바꾸기 (끌어서 놓기) ----------
+   마우스: 누른 채 5px 넘게 움직이면 끌기 시작 · 터치: 꾹 누르고(0.35초) 움직이면 끌기 (짧게 밀면 목록 스크롤) */
+let plDrag = null, plDragJustEnded = false;
+function startPlDrag(e, i, li) {
+  if (playlist.length < 2 || (e.pointerType === 'mouse' && e.button !== 0)) return;
+  if (e.target.closest('.ren, .rm, .name-input')) return;
+  const touch = e.pointerType !== 'mouse';
+  const ul = $('plList');
+  const d = plDrag = { i, li, ul, y0: e.clientY, active: false, to: i, timer: null };
+  const activate = () => {
+    if (plDrag !== d) return;
+    d.active = true; li.classList.add('dragging'); ul.classList.add('reordering');
+  };
+  const clearMarks = () => ul.querySelectorAll('.drop-before, .drop-after').forEach((x) => x.classList.remove('drop-before', 'drop-after'));
+  const move = (ev) => {
+    const dy = ev.clientY - d.y0;
+    if (!d.active) {
+      if (touch) { if (Math.abs(dy) > 8) end(false); return; } // 꾹 누르기 전에 움직이면 스크롤로 봄
+      if (Math.abs(dy) > 5) activate(); else return;
+    }
+    li.style.transform = `translateY(${dy}px)`;
+    // 놓을 자리: 끌고 있는 항목을 뺀 나머지 중 가운데가 손가락(마우스)보다 위에 있는 개수
+    const others = [...ul.children].filter((x) => x !== li);
+    let to = 0;
+    others.forEach((x) => { const r = x.getBoundingClientRect(); if (r.top + r.height / 2 < ev.clientY) to++; });
+    d.to = to;
+    clearMarks();
+    if (to < others.length) others[to].classList.add('drop-before'); else others[others.length - 1]?.classList.add('drop-after');
+  };
+  const end = (apply) => {
+    clearTimeout(d.timer);
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', up);
+    window.removeEventListener('pointercancel', cancel);
+    if (plDrag === d) plDrag = null;
+    clearMarks(); li.classList.remove('dragging'); li.style.transform = ''; ul.classList.remove('reordering');
+    if (!d.active) return;
+    plDragJustEnded = true; setTimeout(() => { plDragJustEnded = false; }, 0);
+    if (apply && d.to !== d.i) movePlaylistItem(d.i, d.to);
+  };
+  const up = () => end(true);
+  const cancel = () => end(false);
+  if (touch) d.timer = setTimeout(activate, 350);
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up);
+  window.addEventListener('pointercancel', cancel);
+}
+// 터치로 끄는 동안에는 목록이 스크롤되지 않게
+$('plList').addEventListener('touchmove', (e) => { if (plDrag?.active) e.preventDefault(); }, { passive: false });
+// 순서 바꾸기: 지금 파일·돌아갈 파일 번호도 새 순서에 맞춤 (재생은 끊기지 않음)
+function movePlaylistItem(from, to) {
+  const cur = playlist[curItem], back = playlist[backItem];
+  const [m] = playlist.splice(from, 1);
+  playlist.splice(to, 0, m);
+  curItem = cur ? playlist.indexOf(cur) : -1;
+  backItem = back ? playlist.indexOf(back) : -1;
+  renderPlaylist();
+}
 function renderPlaylist() {
   $('listBtn').classList.toggle('hidden', !playlist.length);
   $('listCount').textContent = playlist.length ? ` ${playlist.length}` : '';
@@ -547,8 +605,10 @@ function renderPlaylist() {
     li.querySelector('.meta').textContent = meta;
     li.insertAdjacentHTML('beforeend', `<button class="ren" title="이름 바꾸기" aria-label="이름 바꾸기">✎</button><button class="rm" title="목록에서 빼기" aria-label="목록에서 빼기">✕</button>`);
     li.querySelector('.name').textContent = displayName(p);
-    li.title = names[p.key] ? `${displayName(p)} (원래 파일: ${p.file.name})` : p.file.name;
+    li.title = (names[p.key] ? `${displayName(p)} (원래 파일: ${p.file.name})` : p.file.name) + (playlist.length > 1 ? '\n드래그하여 순서 변경' : '');
+    li.addEventListener('pointerdown', (e) => startPlDrag(e, i, li));
     li.onclick = (e) => {
+      if (plDragJustEnded) { plDragJustEnded = false; return; } // 끌어서 옮긴 직후의 클릭은 파일 열기로 보지 않음
       if (e.target.closest('.name-input')) return;
       if (e.target.closest('.ren')) { renameItem(i, li); return; }
       if (e.target.closest('.rm')) { removeItem(i); return; }
@@ -585,7 +645,7 @@ async function loadFile(f, sub = null) {
   $('retranscribeBtn').disabled = false;
 
   await new Promise((res) => {
-    media.onloadedmetadata = () => { hasVideo = media.videoWidth > 0; res(); };
+    media.onloadedmetadata = () => { hasVideo = media.videoWidth > 0; $('mediaWrap').classList.toggle('portrait', media.videoHeight > media.videoWidth); res(); };
     media.onerror = () => res();
   });
 
@@ -1273,6 +1333,7 @@ function toggleLineMenu(i, btn) {
   if (!open) return;
   const m = $('lineMenu');
   m.querySelector('[data-act="merge"]').disabled = i >= segs.length - 1;
+  m.querySelector('[data-act="delete"]').disabled = segs.length <= 1; // 마지막 한 문장은 지울 수 없음
   m.classList.remove('hidden');
   lineMenuIdx = i;
   // 버튼 바로 아래, 오른쪽 끝을 버튼에 맞춤 (화면 밖으로 나가면 위쪽·안쪽으로)
@@ -1291,6 +1352,7 @@ $('lineMenu').onclick = (e) => {
   if (i < 0 || !segs[i]) return;
   if (b.dataset.act === 'sync') openSync(i);
   else if (b.dataset.act === 'split') startSplit(i);
+  else if (b.dataset.act === 'delete') deleteLine(i);
   else mergeNext(i);
 };
 
@@ -1368,6 +1430,19 @@ function splitAt(i, k) {
   raw.splice(p, 1, A, B);
   setSegments(raw, A.start);
   undoToast('문장을 둘로 나눴어요. 싱크가 어긋나면 ⋯ → 싱크 맞추기에서 조정해 주세요.', 3500);
+}
+// 문장 삭제: 그 구간은 건너뛰고 다음 문장으로 (영상 자체는 그대로). 실행 취소로 되돌릴 수 있음
+function deleteLine(i) {
+  if (segs.length <= 1 || !segs[i]) return;
+  stop();
+  const seg = segs[i], after = segs[i + 1] || segs[i - 1];
+  const { raw, pos } = rawWith([seg]);
+  const p = pos.get(seg);
+  if (p == null) return;
+  recordUndo();
+  raw.splice(p, 1);
+  setSegments(raw, after.start);
+  undoToast('문장을 삭제했어요.', 2500);
 }
 function mergeNext(i) {
   if (i >= segs.length - 1) return;
