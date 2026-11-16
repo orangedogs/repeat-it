@@ -335,7 +335,7 @@ body.ko-on .line[data-d="0"] .ko-row .pen { display: inline-block; }
 .sync .now { margin-left: 6px; color: var(--accent2); border-color: color-mix(in srgb, var(--accent2) 55%, transparent); background: color-mix(in srgb, var(--accent2) 12%, transparent); font-weight: 600; }
 .sync .now:hover { background: color-mix(in srgb, var(--accent2) 22%, transparent); }
 .sync-row.act { margin-top: 10px; }
-.sync .play { background: var(--accent); border-color: var(--accent); color: #1a1400; font-weight: 600; }
+.sync .play { background: var(--accent); border-color: var(--accent); color: #1a1400; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
 .sync .done { margin-left: auto; }
 .sync-tip { margin: 8px 0 0; font-size: 11.5px; color: var(--dim); line-height: 1.5; }
 

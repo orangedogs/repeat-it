@@ -55,7 +55,7 @@ function show(section) {
    - onMore: 알림 오른쪽 글자 버튼 ('자세히 보기', '실행 취소' 등) */
 const TOAST_MAX = 3, TOAST_GAP = 500; // 한꺼번에 생긴 알림은 0.5초 간격으로 하나씩 올라오게
 let toastNextAt = 0; const toastPending = new Set();
-let lineMenuIdx = -1, splitIdx = -1; // 현재 문장 ⋯ 메뉴가 열린 문장 / 문장 나누기 중인 문장
+let lineMenuIdx = -1, splitIdx = -1, lineMenuMoved = 0; // 현재 문장 ⋯ 메뉴가 열린 문장 / 문장 나누기 중인 문장
 const toastBox = $('toasts');
 function removeToast(el) {
   if (el && toastPending.has(el)) { toastPending.delete(el); clearTimeout(el._w); return; } // 아직 안 뜬 알림은 취소
@@ -1331,6 +1331,8 @@ function toggleLineMenu(i, btn) {
   const open = lineMenuIdx !== i;
   closeMenus();
   if (!open) return;
+  stop(); // 메뉴를 여는 동안 다음 문장으로 넘어가며 메뉴가 닫히지 않게 일시정지 (메뉴의 모든 동작도 일시정지 상태에서 함)
+  lineMenuMoved = 0;
   const m = $('lineMenu');
   m.querySelector('[data-act="merge"]').disabled = i >= segs.length - 1;
   m.querySelector('[data-act="delete"]').disabled = segs.length <= 1; // 마지막 한 문장은 지울 수 없음
@@ -1468,6 +1470,11 @@ function mergeNext(i) {
 /* ---------- 싱크 맞추기 ----------
    현재 문장의 시작·끝 시간을 0.1초씩 옮기거나, 지금 재생 위치로 맞춤. '들어보기'로 바로 확인 */
 let syncIdx = -1, previewOnly = false;
+// 싱크 창의 들어보기 버튼: 재생 중에는 일시정지 버튼으로 바뀜
+const PREVIEW_LABEL = {
+  play: '<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="8" cy="8" r="6.6"/><path d="M6.7 5.4v5.2L10.6 8z" fill="currentColor" stroke-linejoin="round"/></svg>들어보기',
+  pause: '<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="8" cy="8" r="6.6"/><path d="M6.6 5.6v4.8M9.4 5.6v4.8" stroke-linecap="round"/></svg>일시정지',
+};
 const fmtT = (t) => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, '0')}`;
 function openSync(i) {
   stop();
@@ -1495,9 +1502,9 @@ function syncPanel(i) {
   box.innerHTML = `
     <div class="sync-row"><span class="lab">시작</span><button data-a="s" data-d="-0.1">−0.1</button><input class="t" data-a="s" value="${fmtT(s.start)}" inputmode="decimal" autocomplete="off" spellcheck="false" aria-label="시작 시간 (분:초)" title="직접 입력 가능 (예: 0:12.3) · Enter로 적용"><button data-a="s" data-d="0.1">+0.1</button><button class="now" data-a="s" data-now="1" title="일시정지한 위치를 시작 시간으로 설정">⌖ 현재 위치</button></div>
     <div class="sync-row"><span class="lab">끝</span><button data-a="e" data-d="-0.1">−0.1</button><input class="t" data-a="e" value="${fmtT(s.end)}" inputmode="decimal" autocomplete="off" spellcheck="false" aria-label="끝 시간 (분:초)" title="직접 입력 가능 (예: 0:15.8) · Enter로 적용"><button data-a="e" data-d="0.1">+0.1</button><button class="now" data-a="e" data-now="1" title="일시정지한 위치를 끝 시간으로 설정">⌖ 현재 위치</button></div>
-    <div class="sync-row act"><button class="play" data-a="play">▶ 들어보기</button><button class="done" data-a="done">완료</button></div>
+    <div class="sync-row act"><button class="play" data-a="play">${PREVIEW_LABEL.play}</button><button class="done" data-a="done">완료</button></div>
     <p class="sync-warn hidden"></p>
-    <p class="sync-tip">시간 칸을 눌러 직접 입력할 수도 있어요. (예: 0:12.3) 입력한 시간이 허용 범위를 벗어나면 최소·최대값으로 자동 조정돼요.<br>팁: ▶ 들어보기 중 원하는 위치에서 Space로 일시정지한 뒤, ‘현재 위치’를 누르면 해당 시간으로 설정돼요.</p>`;
+    <p class="sync-tip">시간 칸을 눌러 직접 입력할 수도 있어요. (예: 0:12.3) 입력한 시간이 허용 범위를 벗어나면 최소·최대값으로 자동 조정돼요.<br>팁: ▶ 들어보기로 재생하다가 원하는 위치에서 ‘일시정지’ 버튼이나 Space 키를 누른 뒤, ‘현재 위치’를 누르면 해당 시간으로 설정돼요.</p>`;
   const inputs = box.querySelectorAll('input.t');
   const showTimes = () => { inputs[0].value = fmtT(s.start); inputs[1].value = fmtT(s.end); };
   // a: 's' 시작 / 'e' 끝, v: 새 시각(초), typed: 직접 입력이면 범위 밖일 때 최소·최대로 맞췄다고 알림
@@ -1531,7 +1538,7 @@ function syncPanel(i) {
     const b = e.target.closest('button'); if (!b) return;
     const a = b.dataset.a;
     if (a === 'done') { const changed = !syncSnap; syncSnap = null; closeSync(); if (changed) toast('싱크를 저장했어요.', 1200); return; } // 바꾼 게 없으면 알림 없이 닫기
-    if (a === 'play') { previewOnly = true; rep = 1; playLine(); return; }
+    if (a === 'play') { if (running && previewOnly) stop(); else { previewOnly = true; rep = 1; playLine(); } return; } // 들어보기 ↔ 일시정지
     apply(a, b.dataset.now ? media.currentTime : (a === 's' ? s.start : s.end) + Number(b.dataset.d));
   };
   // 시간 직접 입력: "0:12.3" · "12.3" · "1:05" 모두 가능. Enter·다른 곳 누르면 적용, Esc 취소
@@ -1638,7 +1645,12 @@ let wheelT;
 const browseBy = (dy) => {
   if (!segs.length) return;
   browseY -= dy;
-  if (lineMenuIdx >= 0) closeMenus();
+  // ⋯ 메뉴: 손가락 떨림·트랙패드 관성 같은 작은 움직임에는 문장과 함께 따라 움직이고, 확실히 둘러볼 때(24px 이상)만 닫음
+  if (lineMenuIdx >= 0) {
+    lineMenuMoved += Math.abs(dy);
+    if (lineMenuMoved > 24) closeMenus();
+    else { const m = $('lineMenu'); m.style.top = `${parseFloat(m.style.top) - dy}px`; }
+  }
   linesEl.style.transition = 'none';
   positionLines();
   setBrowsing(Math.abs(browseY) > 4);
@@ -1654,7 +1666,9 @@ stage.addEventListener('touchmove', (e) => {
 }, { passive: false });
 stage.addEventListener('touchend', () => { touchY = null; });
 $('backCur').onclick = () => { linesEl.style.transition = ''; resetBrowse(); };
-window.addEventListener('resize', () => { if (lineMenuIdx >= 0) closeMenus(); positionLines(); });
+// 창 크기 변경: 폭이 바뀔 때만 메뉴를 닫음 (휴대폰은 주소창이 숨거나 나타날 때 높이만 바뀜)
+let lastW = innerWidth;
+window.addEventListener('resize', () => { if (lineMenuIdx >= 0 && innerWidth !== lastW) closeMenus(); lastW = innerWidth; positionLines(); });
 
 // 단어 색칠: 음성인식으로 만든 문장만 (자막에서 불러온 문장은 단어별 시각을 몰라 맞지 않으므로 칠하지 않음)
 // 화면보다 긴 문장은 들리는 위치에 맞춰 아래로 따라 내려감
@@ -1674,6 +1688,8 @@ function updateStatus() {
   $('phase').className = `phase ${st}`;
   $('phaseText').textContent = { pause: '일시정지', listen: '듣는 중', speak: '따라 말하기' }[st];
   $('playBtn').textContent = running ? '❚❚' : '▶';
+  const pb = document.querySelector('.sync .play');
+  if (pb) { const k = running && previewOnly ? 'pause' : 'play'; if (pb.dataset.k !== k) { pb.dataset.k = k; pb.innerHTML = PREVIEW_LABEL[k]; } }
 }
 
 /* ================= 쉐도잉 엔진 ================= */
